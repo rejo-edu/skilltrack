@@ -127,7 +127,7 @@
   </footer>
 
   <script>
-    // VUL HIER JOUW EIGEN SUPABASE GEGEVENS IN
+    // SUPABASE GEGEVENS
     const SUPABASE_URL = 'https://zusxpspppahpnnwehyly.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_qt8y504lX4oB0VBoRmX9AQ_1bBgE9L2';
     const DOCENT_GEHEIME_CODE = 'BOS7-DOCENT';
@@ -200,7 +200,7 @@
       // Als het profiel al bestaat en de gebruiker komt niet specifiek om zijn profiel te wijzigen
       const urlParams = new URLSearchParams(window.location.search);
       if (profiel && !urlParams.has('profiel')) {
-        stuurDoorNaarPortaal(profiel.rol);
+        stuurDoorNaarPortaal(profiel.rol, profiel.opleiding);
       } else {
         if (profiel) {
           document.getElementById('naamInput').value = profiel.naam || '';
@@ -250,14 +250,16 @@
       if (error) return toonMelding('Fout bij opslaan: ' + error.message, true);
       
       toonMelding('Profiel opgeslagen!');
-      setTimeout(() => stuurDoorNaarPortaal(rol), 800);
+      setTimeout(() => stuurDoorNaarPortaal(rol, profielData.opleiding), 800);
     }
 
-    function stuurDoorNaarPortaal(rol) {
+    function stuurDoorNaarPortaal(rol, opleiding) {
       if (rol === 'docent') {
         window.location.href = 'slb-portaal.html';
+      } else if (opleiding === 'handel') {
+        window.location.href = 'ST-OHD-4.html';
       } else {
-        window.location.href = 'route.html';
+        window.location.href = 'ST-VSO-26.html';
       }
     }
 
