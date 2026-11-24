@@ -1,4 +1,4 @@
-// skilltrack-sync.js - Koppelt ST-VSO-26.html en ST-OHD-4.html aan Supabase
+// skilltrack-sync.js - Koppelt ST-VSO-26.html en ST-OHD-4.html aan Supabase en regelt de huisstijl
 const SUPABASE_URL = 'https://zusxpspppahpnnwehyly.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_qt8y504lX4oB0VBoRmX9AQ_1bBgE9L2';
 
@@ -9,7 +9,38 @@ function initSupabaseSync() {
   if (!window.supabase) return;
   sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // Voeg Profiel & Uitloggen knoppen toe in de bovenbalk
+  pasBovenbalkEnFooterAan();
+  laadStudentUitDatabase();
+}
+
+function pasBovenbalkEnFooterAan() {
+  // 1. Vervang de oude gele knop 'Opslaan in bestand' door een strak cloud-label met groen vinkje
+  const oudeOpslaanKnop = document.getElementById('save-file-btn');
+  if (oudeOpslaanKnop) {
+    const cloudLabel = document.createElement('div');
+    cloudLabel.id = 'cloud-sync-status';
+    cloudLabel.className = 'bg-np-dark border border-green-700/60 text-gray-200 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 select-none';
+    cloudLabel.title = 'Elke wijziging wordt direct opgeslagen in je SkillTrack-account';
+    cloudLabel.innerHTML = `
+      <i class="ph-fill ph-check-circle text-np-green text-base"></i>
+      <span>Automatisch opgeslagen</span>
+    `;
+    oudeOpslaanKnop.replaceWith(cloudLabel);
+  }
+
+  // 2. Zet het SkillTrack-logo netjes naast het Noorderpoort-logo in de bovenbalk
+  const logoRij = document.querySelector('header .flex.flex-wrap.items-center.gap-4');
+  if (logoRij && !document.getElementById('skilltrack-header-logo')) {
+    const stBadge = document.createElement('div');
+    stBadge.id = 'skilltrack-header-logo';
+    stBadge.className = 'bg-white px-3 py-1.5 rounded-xl shadow-md flex items-center select-none shrink-0 border border-gray-200';
+    stBadge.innerHTML = `
+      <img src="logo-skilltrack.jpg" alt="SkillTrack Logo" class="h-7 sm:h-8 w-auto object-contain" />
+    `;
+    logoRij.insertBefore(stBadge, logoRij.children[1]);
+  }
+
+  // 3. Voeg Profiel & Uitloggen knoppen toe rechtsboven
   const headerBtns = document.querySelector('header .no-print');
   if (headerBtns && !document.getElementById('sb-nav-btns')) {
     const navWrap = document.createElement('div');
@@ -28,7 +59,25 @@ function initSupabaseSync() {
     headerBtns.appendChild(navWrap);
   }
 
-  laadStudentUitDatabase();
+  // 4. Voeg SkillTrack-logo en rejo-edu credits toe aan de voettekst onderaan
+  const footer = document.querySelector('footer');
+  if (footer && !document.getElementById('rejo-edu-credits')) {
+    const creditBalk = document.createElement('div');
+    creditBalk.id = 'rejo-edu-credits';
+    creditBalk.className = 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 mt-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500';
+    creditBalk.innerHTML = `
+      <div class="flex items-center gap-2.5">
+        <img src="logo-skilltrack.jpg" alt="SkillTrack" class="h-6 w-auto rounded" />
+        <span class="font-bold text-np-black">SkillTrack</span>
+        <span>•</span>
+        <span>Digitale leerroute en voortgangsmonitor</span>
+      </div>
+      <div class="font-semibold text-gray-600">
+        Ontworpen en ontwikkeld door <span class="text-np-black font-extrabold">rejo-edu</span>
+      </div>
+    `;
+    footer.appendChild(creditBalk);
+  }
 }
 
 async function laadStudentUitDatabase() {
@@ -40,7 +89,6 @@ async function laadStudentUitDatabase() {
 
   currentStudentId = session.user.id;
 
-  // Haal profiel op
   const { data: profiel } = await sbClient
     .from('profielen')
     .select('*')
@@ -52,7 +100,6 @@ async function laadStudentUitDatabase() {
     return;
   }
 
-  // Vul studentnaam in vanuit database
   if (profiel.naam) {
     userState.studentName = profiel.naam;
     const nameInput = document.getElementById('student-name-input');
@@ -61,7 +108,6 @@ async function laadStudentUitDatabase() {
     if (printName) printName.textContent = profiel.naam;
   }
 
-  // Haal alle voortgang van deze student op uit Supabase
   const { data: voortgangRows, error } = await sbClient
     .from('voortgang')
     .select('*')
@@ -82,9 +128,13 @@ async function laadStudentUitDatabase() {
   }
 }
 
-// Sla wijziging van één onderdeel op in Supabase
 async function syncItemNaarDatabase(itemId) {
   if (!sbClient || !currentStudentId) return;
+
+  const statusEl = document.getElementById('cloud-sync-status');
+  if (statusEl) {
+    statusEl.innerHTML = `<i class="ph-bold ph-arrows-clockwise animate-spin text-np-yellow text-base"></i><span>Opslaan...</span>`;
+  }
 
   const isAfgerond = !!userState.completed[itemId];
   const notitieTekst = (userState.notes[itemId] || '').trim();
@@ -96,9 +146,12 @@ async function syncItemNaarDatabase(itemId) {
     notitie: notitieTekst,
     bijgewerkt_op: new Date().toISOString()
   }, { onConflict: 'student_id,onderdeel_id' });
+
+  if (statusEl) {
+    statusEl.innerHTML = `<i class="ph-fill ph-check-circle text-np-green text-base"></i><span>Automatisch opgeslagen</span>`;
+  }
 }
 
-// Koppel de bestaande acties aan Supabase
 const origineleToggleItemDirect = window.toggleItemDirect;
 window.toggleItemDirect = function(event, itemId) {
   origineleToggleItemDirect(event, itemId);
@@ -125,7 +178,6 @@ async function sbUitloggen() {
   window.location.href = 'index.html';
 }
 
-// Start koppeling zodra pagina geladen is
 window.addEventListener('load', () => {
   setTimeout(initSupabaseSync, 100);
 });
