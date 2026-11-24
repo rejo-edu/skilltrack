@@ -28,19 +28,7 @@ function pasBovenbalkEnFooterAan() {
     oudeOpslaanKnop.replaceWith(cloudLabel);
   }
 
-  // 2. Zet het SkillTrack-logo netjes naast het Noorderpoort-logo in de bovenbalk
-  const logoRij = document.querySelector('header .flex.flex-wrap.items-center.gap-4');
-  if (logoRij && !document.getElementById('skilltrack-header-logo')) {
-    const stBadge = document.createElement('div');
-    stBadge.id = 'skilltrack-header-logo';
-    stBadge.className = 'bg-white px-3 py-1.5 rounded-xl shadow-md flex items-center select-none shrink-0 border border-gray-200';
-    stBadge.innerHTML = `
-      <img src="logo-skilltrack.jpg" alt="SkillTrack Logo" class="h-7 sm:h-8 w-auto object-contain" />
-    `;
-    logoRij.insertBefore(stBadge, logoRij.children[1]);
-  }
-
-  // 3. Voeg Profiel & Uitloggen knoppen toe rechtsboven
+  // 2. Voeg Profiel & Uitloggen knoppen toe rechtsboven
   const headerBtns = document.querySelector('header .no-print');
   if (headerBtns && !document.getElementById('sb-nav-btns')) {
     const navWrap = document.createElement('div');
@@ -57,6 +45,26 @@ function pasBovenbalkEnFooterAan() {
       </button>
     `;
     headerBtns.appendChild(navWrap);
+  }
+
+  // 3. Voeg SkillTrack-logo en rejo-edu credits toe aan de voettekst onderaan
+  const footer = document.querySelector('footer');
+  if (footer && !document.getElementById('rejo-edu-credits')) {
+    const creditBalk = document.createElement('div');
+    creditBalk.id = 'rejo-edu-credits';
+    creditBalk.className = 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 mt-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500';
+    creditBalk.innerHTML = `
+      <div class="flex items-center gap-2.5">
+        <img src="logo-skilltrack.jpg" alt="SkillTrack" class="h-6 w-auto rounded" />
+        <span class="font-bold text-np-black">SkillTrack</span>
+        <span>•</span>
+        <span>Digitale leerroute en voortgangsmonitor</span>
+      </div>
+      <div class="font-semibold text-gray-600">
+        Ontworpen en ontwikkeld door <span class="text-np-black font-extrabold">rejo-edu</span>
+      </div>
+    `;
+    footer.appendChild(creditBalk);
   }
 
   // 4. Voeg SkillTrack-logo en rejo-edu credits toe aan de voettekst onderaan
