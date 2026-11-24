@@ -28,7 +28,7 @@
   <main class="flex-grow flex items-center justify-center p-4">
     
     <!-- Meldingen -->
-    <div id="meldingBox" class="hidden fixed top-20 max-w-md w-full p-4 rounded shadow-lg text-sm font-medium z-50"></div>
+    <div id="meldingBox" class="hidden fixed top-20 left-1/2 transform -translate-x-1/2 max-w-md w-full p-4 rounded shadow-lg text-sm font-bold z-50 text-center"></div>
 
     <!-- SCHERM 1: Inloggen & Registreren -->
     <div id="authScherm" class="bg-white w-full max-w-md rounded-lg shadow-md border border-zinc-200 overflow-hidden">
@@ -55,12 +55,59 @@
         </div>
 
         <div>
-          <label class="block text-sm font-semibold mb-1">Wachtwoord</label>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-sm font-semibold">Wachtwoord</label>
+            <button type="button" id="vergetenLink" onclick="toonVergetenScherm()" class="text-xs font-semibold text-zinc-500 hover:text-black underline">
+              Wachtwoord vergeten?
+            </button>
+          </div>
           <input type="password" id="wachtwoordInput" required minlength="6" placeholder="Minimaal 6 tekens" class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-black">
         </div>
 
         <button type="submit" id="submitBtn" class="w-full bg-[#FFCC00] hover:bg-yellow-400 text-black font-bold py-2.5 rounded transition">
           Inloggen
+        </button>
+      </form>
+    </div>
+
+    <!-- SCHERM 1B: Wachtwoord vergeten aanvragen -->
+    <div id="vergetenScherm" class="hidden bg-white w-full max-w-md rounded-lg shadow-md border border-zinc-200 overflow-hidden">
+      <div class="bg-black text-white p-6">
+        <h2 class="text-2xl font-bold">Wachtwoord herstellen</h2>
+        <p class="text-zinc-300 text-sm mt-1">Vul je school e-mailadres in om een herstellink te ontvangen.</p>
+      </div>
+
+      <form onsubmit="verstuurHerstelMail(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-semibold mb-1">School e-mailadres</label>
+          <input type="email" id="herstelEmailInput" required placeholder="naam@st.noorderpoort.nl" class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-black">
+        </div>
+
+        <button type="submit" class="w-full bg-[#FFCC00] hover:bg-yellow-400 text-black font-bold py-2.5 rounded transition">
+          Stuur herstellink
+        </button>
+
+        <button type="button" onclick="terugNaarInloggen()" class="w-full text-xs font-semibold text-zinc-500 hover:text-black py-1">
+          Terug naar inloggen
+        </button>
+      </form>
+    </div>
+
+    <!-- SCHERM 1C: Nieuw wachtwoord instellen na klikken op e-maillink -->
+    <div id="nieuwWachtwoordScherm" class="hidden bg-white w-full max-w-md rounded-lg shadow-md border border-zinc-200 overflow-hidden">
+      <div class="bg-black text-white p-6">
+        <h2 class="text-2xl font-bold">Nieuw wachtwoord kiezen</h2>
+        <p class="text-zinc-300 text-sm mt-1">Typ hieronder een nieuw wachtwoord voor je SkillTrack-account.</p>
+      </div>
+
+      <form onsubmit="slaNieuwWachtwoordOp(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-semibold mb-1">Nieuw wachtwoord</label>
+          <input type="password" id="nieuwWachtwoordInput" required minlength="6" placeholder="Minimaal 6 tekens" class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-black">
+        </div>
+
+        <button type="submit" class="w-full bg-[#FFCC00] hover:bg-yellow-400 text-black font-bold py-2.5 rounded transition">
+          Nieuw wachtwoord opslaan
         </button>
       </form>
     </div>
@@ -127,7 +174,6 @@
   </footer>
 
   <script>
-    // SUPABASE GEGEVENS
     const SUPABASE_URL = 'https://zusxpspppahpnnwehyly.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_qt8y504lX4oB0VBoRmX9AQ_1bBgE9L2';
     const DOCENT_GEHEIME_CODE = 'BOS7-DOCENT';
@@ -135,22 +181,46 @@
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let huidigeModus = 'inloggen';
     let huidigeGebruiker = null;
+    let inHerstelModus = false;
 
-    // Bij laden direct controleren of iemand al ingelogd is
+    // Luister naar wachtwoordherstel vanuit een e-maillink
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        inHerstelModus = true;
+        verbergAlleSchermen();
+        document.getElementById('nieuwWachtwoordScherm').classList.remove('hidden');
+      }
+    });
+
     window.addEventListener('DOMContentLoaded', async () => {
+      // Controleer of de URL een herstel-token bevat
+      if (window.location.hash && window.location.hash.includes('type=recovery')) {
+        inHerstelModus = true;
+        verbergAlleSchermen();
+        document.getElementById('nieuwWachtwoordScherm').classList.remove('hidden');
+        return;
+      }
+
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) {
+      if (session && !inHerstelModus) {
         huidigeGebruiker = session.user;
         controleerProfiel();
       }
     });
 
+    function verbergAlleSchermen() {
+      document.getElementById('authScherm').classList.add('hidden');
+      document.getElementById('vergetenScherm').classList.add('hidden');
+      document.getElementById('nieuwWachtwoordScherm').classList.add('hidden');
+      document.getElementById('profielScherm').classList.add('hidden');
+    }
+
     function toonMelding(tekst, isFout = false) {
       const box = document.getElementById('meldingBox');
       box.textContent = tekst;
-      box.className = `fixed top-20 left-1/2 transform -translate-x-1/2 max-w-md w-full p-4 rounded shadow-lg text-sm font-bold z-50 ${isFout ? 'bg-red-600 text-white' : 'bg-black text-[#FFCC00] border border-[#FFCC00]'}`;
+      box.className = `fixed top-20 left-1/2 transform -translate-x-1/2 max-w-md w-full p-4 rounded shadow-lg text-sm font-bold z-50 text-center ${isFout ? 'bg-red-600 text-white' : 'bg-black text-[#FFCC00] border border-[#FFCC00]'}`;
       box.classList.remove('hidden');
-      setTimeout(() => box.classList.add('hidden'), 4000);
+      setTimeout(() => box.classList.add('hidden'), 4500);
     }
 
     function wisselTab(modus) {
@@ -158,16 +228,68 @@
       const tabIn = document.getElementById('tabInloggen');
       const tabReg = document.getElementById('tabRegistreren');
       const btn = document.getElementById('submitBtn');
+      const vergetenLink = document.getElementById('vergetenLink');
 
       if (modus === 'inloggen') {
         tabIn.className = 'w-1/2 py-3 text-sm font-bold border-b-2 border-[#FFCC00] bg-zinc-50';
         tabReg.className = 'w-1/2 py-3 text-sm font-medium text-zinc-500 hover:text-black';
         btn.textContent = 'Inloggen';
+        vergetenLink.classList.remove('hidden');
       } else {
         tabReg.className = 'w-1/2 py-3 text-sm font-bold border-b-2 border-[#FFCC00] bg-zinc-50';
         tabIn.className = 'w-1/2 py-3 text-sm font-medium text-zinc-500 hover:text-black';
         btn.textContent = 'Account aanmaken';
+        vergetenLink.classList.add('hidden');
       }
+    }
+
+    function toonVergetenScherm() {
+      verbergAlleSchermen();
+      const ingevuldeMail = document.getElementById('emailInput').value;
+      if (ingevuldeMail) {
+        document.getElementById('herstelEmailInput').value = ingevuldeMail;
+      }
+      document.getElementById('vergetenScherm').classList.remove('hidden');
+    }
+
+    function terugNaarInloggen() {
+      verbergAlleSchermen();
+      document.getElementById('authScherm').classList.remove('hidden');
+    }
+
+    async function verstuurHerstelMail(e) {
+      e.preventDefault();
+      const email = document.getElementById('herstelEmailInput').value.trim();
+      const redirectUrl = window.location.origin + window.location.pathname;
+
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl
+      });
+
+      if (error) {
+        return toonMelding('Kon geen mail versturen. Controleer het e-mailadres.', true);
+      }
+
+      toonMelding('Herstellink verstuurd! Controleer je e-mail (ook je ongewenste post).');
+      setTimeout(() => terugNaarInloggen(), 2500);
+    }
+
+    async function slaNieuwWachtwoordOp(e) {
+      e.preventDefault();
+      const nieuwWachtwoord = document.getElementById('nieuwWachtwoordInput').value;
+
+      const { data, error } = await supabaseClient.auth.updateUser({
+        password: nieuwWachtwoord
+      });
+
+      if (error) {
+        return toonMelding('Fout bij opslaan: ' + error.message, true);
+      }
+
+      inHerstelModus = false;
+      huidigeGebruiker = data.user;
+      toonMelding('Wachtwoord gewijzigd! Je wordt doorgestuurd...');
+      setTimeout(() => controleerProfiel(), 1200);
     }
 
     async function verwerkAuth(e) {
@@ -197,7 +319,6 @@
         .eq('id', huidigeGebruiker.id)
         .single();
 
-      // Als het profiel al bestaat en de gebruiker komt niet specifiek om zijn profiel te wijzigen
       const urlParams = new URLSearchParams(window.location.search);
       if (profiel && !urlParams.has('profiel')) {
         stuurDoorNaarPortaal(profiel.rol, profiel.opleiding);
@@ -214,7 +335,7 @@
     }
 
     function toonProfielScherm() {
-      document.getElementById('authScherm').classList.add('hidden');
+      verbergAlleSchermen();
       document.getElementById('profielScherm').classList.remove('hidden');
     }
 
