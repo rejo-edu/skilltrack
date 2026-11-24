@@ -218,7 +218,8 @@
       tbody.innerHTML = studentenLijst.map(student => {
         const studentItems = alleVoortgang.filter(v => v.student_id === student.id);
         const afgerondAantal = studentItems.filter(v => v.afgerond).length;
-        const percentage = Math.min(100, Math.round((afgerondAantal / TOTAAL_ONDERDELEN) * 100));
+        const totaalVoorOpleiding = student.opleiding === 'vakspecialist' ? 30 : 50;
+        const percentage = Math.min(100, Math.round((afgerondAantal / totaalVoorOpleiding) * 100));
 
         // Bepaal laatste update datum
         let laatsteDatum = 'Nog geen activiteit';
