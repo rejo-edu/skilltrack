@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkillTrack - SLB Portaal | Noorderpoort</title>
+  <title>SkillTrack - SLB Portaal & Beheer | Noorderpoort</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { background-color: #f4f4f5; font-family: system-ui, -apple-system, sans-serif; }
   </style>
 </head>
-<body class="min-h-screen flex flex-col text-zinc-900">
+<body class="min-h-screen flex flex-col justify-between text-zinc-900">
 
   <!-- Bovenbalk -->
   <header class="bg-black text-white py-4 px-6 border-b-4 border-[#FFCC00] flex flex-wrap justify-between items-center gap-4">
@@ -18,38 +18,53 @@
       <div class="bg-white px-3 py-1 rounded font-bold text-black tracking-tight text-lg">
         Noorderp<span class="text-[#FFCC00]">oo</span>rt
       </div>
-      <span class="font-semibold text-lg tracking-wide">SkillTrack</span>
-      <span class="bg-[#FFCC00] text-black text-xs font-bold px-2.5 py-1 rounded uppercase">SLB Portaal</span>
+      <div class="bg-white px-2.5 py-1 rounded flex items-center">
+        <img src="logo-skilltrack.jpg" alt="SkillTrack" class="h-6 w-auto object-contain">
+      </div>
+      <span class="bg-zinc-800 text-[#FFCC00] border border-[#FFCC00]/40 text-xs font-bold px-2.5 py-1 rounded uppercase">SLB Portaal</span>
     </div>
 
-    <div class="flex items-center gap-3">
-      <span id="docentNaamLabel" class="text-sm text-zinc-300 hidden sm:inline"></span>
-      <a href="index.html?profiel=1" class="text-sm bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-2 rounded font-medium transition">
+    <div class="flex flex-wrap items-center gap-2.5">
+      <span id="docentNaamLabel" class="text-sm text-zinc-300 hidden md:inline mr-1"></span>
+      
+      <!-- Alleen zichtbaar voor Super Admin -->
+      <button id="adminToggleBtn" onclick="wisselWeergave()" class="hidden text-xs bg-[#FFCC00] hover:bg-yellow-400 text-black px-3.5 py-2 rounded font-extrabold transition">
+        Super Admin
+      </button>
+
+      <a href="index.html?profiel=1" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-2 rounded font-medium transition">
         Mijn profiel
       </a>
-      <button onclick="uitloggen()" class="text-sm bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-2 rounded font-medium transition">
+      <button onclick="uitloggen()" class="text-xs bg-zinc-800 hover:bg-red-900 text-white px-3 py-2 rounded font-medium transition">
         Uitloggen
       </button>
     </div>
   </header>
 
-  <!-- Hoofdinhoud -->
-  <main class="flex-grow max-w-6xl w-full mx-auto p-6 space-y-6">
+  <!-- Meldingenbalk -->
+  <div id="meldingBox" class="hidden fixed top-20 left-1/2 transform -translate-x-1/2 max-w-md w-full p-4 rounded shadow-xl text-sm font-bold z-50 text-center"></div>
 
-    <!-- Bovenste samenvatting en filters -->
+  <!-- HOOFDWEERGAVE 1: SLB OVERZICHT VOOR DOCENTEN -->
+  <main id="slbWeergave" class="flex-grow max-w-6xl w-full mx-auto p-6 space-y-6">
+
     <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 space-y-4">
       <div class="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h1 class="text-2xl font-bold">Voortgang SLB-studenten</h1>
           <p class="text-sm text-zinc-600">Bekijk de actuele status en notities van je studenten.</p>
         </div>
-        <button onclick="laadGegevens()" class="bg-black hover:bg-zinc-800 text-[#FFCC00] text-sm font-bold px-4 py-2 rounded transition">
-          Ververs overzicht
-        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="exporteerCsv()" class="bg-zinc-100 hover:bg-zinc-200 text-black border border-zinc-300 text-xs font-bold px-3.5 py-2 rounded transition">
+            Exporteer naar Excel (CSV)
+          </button>
+          <button onclick="laadGegevens()" class="bg-black hover:bg-zinc-800 text-[#FFCC00] text-xs font-bold px-4 py-2 rounded transition">
+            Ververs overzicht
+          </button>
+        </div>
       </div>
 
       <!-- Filterbalk -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-zinc-100">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-zinc-100">
         <div>
           <label class="block text-xs font-bold uppercase text-zinc-500 mb-1">SLB'er</label>
           <select id="filterSlb" onchange="filterStudenten()" class="w-full px-3 py-2 border border-zinc-300 rounded text-sm bg-white focus:outline-none focus:border-black">
@@ -98,6 +113,75 @@
         </table>
       </div>
     </div>
+  </main>
+
+  <!-- HOOFDWEERGAVE 2: SUPER ADMIN DASHBOARD -->
+  <main id="adminWeergave" class="hidden flex-grow max-w-6xl w-full mx-auto p-6 space-y-6">
+    
+    <!-- Statistieken balk -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="bg-white p-5 rounded-lg shadow-sm border border-zinc-200">
+        <span class="text-xs font-bold uppercase text-zinc-500">Totaal aantal studenten</span>
+        <div id="statStudenten" class="text-3xl font-extrabold mt-1">0</div>
+      </div>
+      <div class="bg-white p-5 rounded-lg shadow-sm border border-zinc-200">
+        <span class="text-xs font-bold uppercase text-zinc-500">Geregistreerde docenten</span>
+        <div id="statDocenten" class="text-3xl font-extrabold mt-1">0</div>
+      </div>
+      <div class="bg-white p-5 rounded-lg shadow-sm border border-zinc-200">
+        <span class="text-xs font-bold uppercase text-zinc-500">Actieve opleidingen</span>
+        <div id="statOpleidingen" class="text-3xl font-extrabold mt-1">0</div>
+      </div>
+    </div>
+
+    <!-- Gebruikersbeheer -->
+    <div class="bg-white rounded-lg shadow-sm border border-zinc-200 overflow-hidden">
+      <div class="bg-black text-white p-5 flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-[#FFCC00]">Gebruikersbeheer (Studenten & Docenten)</h2>
+          <p class="text-xs text-zinc-300 mt-0.5">Wijzig rollen, koppel een andere SLB'er, reset voortgang of verwijder oude testaccounts.</p>
+        </div>
+        <button onclick="exporteerCsv()" class="bg-[#FFCC00] hover:bg-yellow-400 text-black text-xs font-extrabold px-4 py-2 rounded transition">
+          Download volledige CSV
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-zinc-100 text-zinc-700 text-xs uppercase border-b border-zinc-200">
+              <th class="py-3 px-4 font-bold">Naam</th>
+              <th class="py-3 px-4 font-bold">Rol</th>
+              <th class="py-3 px-4 font-bold">Opleiding</th>
+              <th class="py-3 px-4 font-bold">SLB'er</th>
+              <th class="py-3 px-4 font-bold text-right">Beheeracties</th>
+            </tr>
+          </thead>
+          <tbody id="adminGebruikersBody" class="divide-y divide-zinc-200 text-sm"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Opleidingenbeheer -->
+    <div class="bg-white rounded-lg shadow-sm border border-zinc-200 p-6 space-y-4">
+      <div>
+        <h2 class="text-lg font-bold">Opleidingen in database</h2>
+        <p class="text-xs text-zinc-500">Voeg hier nieuwe opleidingen toe voor team BOS7 of andere teams binnen Noorderpoort.</p>
+      </div>
+
+      <form onsubmit="voegOpleidingToe(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-zinc-50 p-4 rounded border border-zinc-200">
+        <input type="text" id="nieuweOplId" required placeholder="Korte code (bijv. logistiek)" class="px-3 py-2 border border-zinc-300 rounded text-sm bg-white">
+        <input type="text" id="nieuweOplNaam" required placeholder="Naam opleiding" class="px-3 py-2 border border-zinc-300 rounded text-sm bg-white sm:col-span-2">
+        <div class="flex gap-2">
+          <input type="text" id="nieuweOplCrebo" required placeholder="CREBO" class="w-24 px-3 py-2 border border-zinc-300 rounded text-sm bg-white">
+          <button type="submit" class="flex-grow bg-black hover:bg-zinc-800 text-[#FFCC00] text-xs font-bold px-4 py-2 rounded transition">
+            Toevoegen
+          </button>
+        </div>
+      </form>
+
+      <div id="adminOpleidingenLijst" class="divide-y divide-zinc-200 border border-zinc-200 rounded"></div>
+    </div>
 
   </main>
 
@@ -128,16 +212,31 @@
     </div>
   </div>
 
+  <!-- Voettekst -->
+  <footer class="bg-white border-t border-zinc-200 py-4 px-6 mt-8">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500">
+      <div class="flex items-center gap-2">
+        <img src="logo-skilltrack.jpg" alt="SkillTrack" class="h-5 w-auto">
+        <span>SkillTrack • Voortgangsregistratie binnen Noorderpoort</span>
+      </div>
+      <div class="font-semibold text-zinc-600">Ontworpen en ontwikkeld door <span class="text-black font-bold">rejo-edu</span></div>
+    </div>
+  </footer>
+
   <script>
     const SUPABASE_URL = 'https://zusxpspppahpnnwehyly.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_qt8y504lX4oB0VBoRmX9AQ_1bBgE9L2';
+    const SUPER_ADMIN_EMAIL = 'r.dejonge@noorderpoort.nl';
+
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // Totaal aantal onderdelen in de route voor berekening van het percentage
-    const TOTAAL_ONDERDELEN = 38;
-
+    let alleProfielen = [];
     let alleStudenten = [];
     let alleVoortgang = [];
+    let alleOpleidingen = [];
+    let huidigeGebruikerId = null;
+    let isSuperAdmin = false;
+    let adminActief = false;
 
     window.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -146,21 +245,26 @@
         return;
       }
 
-      // Controleer of de ingelogde gebruiker echt een docent is
+      huidigeGebruikerId = session.user.id;
+      isSuperAdmin = (session.user.email || '').toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+
       const { data: mijnProfiel } = await supabaseClient
         .from('profielen')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('id', huidigeGebruikerId)
         .single();
 
       if (!mijnProfiel || mijnProfiel.rol !== 'docent') {
-        window.location.href = 'route.html';
+        window.location.href = 'ST-VSO-26.html';
         return;
       }
 
       document.getElementById('docentNaamLabel').textContent = `Ingelogd als ${mijnProfiel.naam}`;
-      
-      // Zet het filter standaard op de ingelogde docent als die in de lijst staat
+
+      if (isSuperAdmin) {
+        document.getElementById('adminToggleBtn').classList.remove('hidden');
+      }
+
       const slbSelect = document.getElementById('filterSlb');
       if ([...slbSelect.options].some(o => o.value === mijnProfiel.naam)) {
         slbSelect.value = mijnProfiel.naam;
@@ -169,26 +273,52 @@
       laadGegevens();
     });
 
+    function toonMelding(tekst, isFout = false) {
+      const box = document.getElementById('meldingBox');
+      box.textContent = tekst;
+      box.className = `fixed top-20 left-1/2 transform -translate-x-1/2 max-w-md w-full p-4 rounded shadow-xl text-sm font-bold z-50 text-center ${isFout ? 'bg-red-600 text-white' : 'bg-black text-[#FFCC00] border border-[#FFCC00]'}`;
+      box.classList.remove('hidden');
+      setTimeout(() => box.classList.add('hidden'), 3500);
+    }
+
+    function wisselWeergave() {
+      adminActief = !adminActief;
+      const slbMain = document.getElementById('slbWeergave');
+      const adminMain = document.getElementById('adminWeergave');
+      const btn = document.getElementById('adminToggleBtn');
+
+      if (adminActief) {
+        slbMain.classList.add('hidden');
+        adminMain.classList.remove('hidden');
+        btn.textContent = 'Terug naar SLB Portaal';
+        tekenAdminDashboard();
+      } else {
+        adminMain.classList.add('hidden');
+        slbMain.classList.remove('hidden');
+        btn.textContent = 'Super Admin';
+      }
+    }
+
     async function laadGegevens() {
-      const { data: studenten, error: errStud } = await supabaseClient
-        .from('profielen')
-        .select('*')
-        .eq('rol', 'student')
-        .order('naam', { ascending: true });
+      const [resProf, resVoort, resOpl] = await Promise.all([
+        supabaseClient.from('profielen').select('*').order('naam', { ascending: true }),
+        supabaseClient.from('voortgang').select('*'),
+        supabaseClient.from('opleidingen').select('*').order('naam', { ascending: true })
+      ]);
 
-      const { data: voortgang, error: errVoort } = await supabaseClient
-        .from('voortgang')
-        .select('*');
-
-      if (errStud || errVoort) {
+      if (resProf.error || resVoort.error) {
         document.getElementById('studentenTabelBody').innerHTML = `
           <tr><td colspan="6" class="py-8 text-center text-red-600">Fout bij laden van gegevens.</td></tr>`;
         return;
       }
 
-      alleStudenten = studenten || [];
-      alleVoortgang = voortgang || [];
+      alleProfielen = resProf.data || [];
+      alleStudenten = alleProfielen.filter(p => p.rol === 'student');
+      alleVoortgang = resVoort.data || [];
+      alleOpleidingen = resOpl.data || [];
+
       filterStudenten();
+      if (isSuperAdmin) tekenAdminDashboard();
     }
 
     function filterStudenten() {
@@ -221,7 +351,6 @@
         const totaalVoorOpleiding = student.opleiding === 'vakspecialist' ? 30 : 50;
         const percentage = Math.min(100, Math.round((afgerondAantal / totaalVoorOpleiding) * 100));
 
-        // Bepaal laatste update datum
         let laatsteDatum = 'Nog geen activiteit';
         if (studentItems.length > 0) {
           const gesorteerd = [...studentItems].sort((a, b) => new Date(b.bijgewerkt_op) - new Date(a.bijgewerkt_op));
@@ -234,15 +363,15 @@
 
         return `
           <tr class="hover:bg-zinc-50 transition">
-            <td class="py-4 px-4 font-bold text-zinc-900">${student.naam}</td>
+            <td class="py-4 px-4 font-bold text-zinc-900">${escapeHtml(student.naam)}</td>
             <td class="py-4 px-4 text-zinc-600">${opleidingLabel}</td>
-            <td class="py-4 px-4 text-zinc-600">${student.slb_docent || '-'}</td>
+            <td class="py-4 px-4 text-zinc-600">${escapeHtml(student.slb_docent || '-')}</td>
             <td class="py-4 px-4">
               <div class="flex items-center gap-3">
                 <div class="w-28 bg-zinc-200 rounded-full h-2.5 overflow-hidden">
                   <div class="bg-[#FFCC00] h-2.5 rounded-full" style="width: ${percentage}%"></div>
                 </div>
-                <span class="text-xs font-bold">${afgerondAantal} items (${percentage}%)</span>
+                <span class="text-xs font-bold">${afgerondAantal}/${totaalVoorOpleiding} (${percentage}%)</span>
               </div>
             </td>
             <td class="py-4 px-4 text-zinc-500 text-xs">${laatsteDatum}</td>
@@ -254,6 +383,149 @@
           </tr>
         `;
       }).join('');
+    }
+
+    function tekenAdminDashboard() {
+      document.getElementById('statStudenten').textContent = alleStudenten.length;
+      document.getElementById('statDocenten').textContent = alleProfielen.filter(p => p.rol === 'docent').length;
+      document.getElementById('statOpleidingen').textContent = alleOpleidingen.length;
+
+      const adminBody = document.getElementById('adminGebruikersBody');
+      adminBody.innerHTML = alleProfielen.map(gebruiker => {
+        const isIkZelf = gebruiker.id === huidigeGebruikerId;
+        return `
+          <tr class="hover:bg-zinc-50">
+            <td class="py-3 px-4 font-bold">
+              ${escapeHtml(gebruiker.naam)}
+              ${isIkZelf ? '<span class="ml-2 text-[10px] bg-[#FFCC00] text-black px-1.5 py-0.5 rounded uppercase">Jij</span>' : ''}
+            </td>
+            <td class="py-3 px-4">
+              <select onchange="wijzigGebruikerVeld('${gebruiker.id}', 'rol', this.value)" ${isIkZelf ? 'disabled' : ''} class="border border-zinc-300 rounded px-2 py-1 text-xs bg-white">
+                <option value="student" ${gebruiker.rol === 'student' ? 'selected' : ''}>Student</option>
+                <option value="docent" ${gebruiker.rol === 'docent' ? 'selected' : ''}>Docent</option>
+              </select>
+            </td>
+            <td class="py-3 px-4">
+              <select onchange="wijzigGebruikerVeld('${gebruiker.id}', 'opleiding', this.value)" class="border border-zinc-300 rounded px-2 py-1 text-xs bg-white">
+                <option value="vakspecialist" ${gebruiker.opleiding === 'vakspecialist' ? 'selected' : ''}>Vakspecialist (25997)</option>
+                <option value="handel" ${gebruiker.opleiding === 'handel' ? 'selected' : ''}>Ondernemer Handel (27121)</option>
+              </select>
+            </td>
+            <td class="py-3 px-4">
+              ${gebruiker.rol === 'student' ? `
+                <select onchange="wijzigGebruikerVeld('${gebruiker.id}', 'slb_docent', this.value)" class="border border-zinc-300 rounded px-2 py-1 text-xs bg-white">
+                  <option value="René de Jonge" ${gebruiker.slb_docent === 'René de Jonge' ? 'selected' : ''}>René de Jonge</option>
+                  <option value="Jos Zuidema" ${gebruiker.slb_docent === 'Jos Zuidema' ? 'selected' : ''}>Jos Zuidema</option>
+                  <option value="Overig team BOS7" ${gebruiker.slb_docent === 'Overig team BOS7' ? 'selected' : ''}>Overig team BOS7</option>
+                </select>
+              ` : '<span class="text-xs text-zinc-400">n.v.t.</span>'}
+            </td>
+            <td class="py-3 px-4 text-right space-x-1.5">
+              ${gebruiker.rol === 'student' ? `
+                <button onclick="resetStudentVoortgang('${gebruiker.id}', '${escapeHtml(gebruiker.naam)}')" class="bg-zinc-200 hover:bg-zinc-300 text-black text-xs font-semibold px-2.5 py-1 rounded">
+                  Reset voortgang
+                </button>
+              ` : ''}
+              ${!isIkZelf ? `
+                <button onclick="verwijderGebruiker('${gebruiker.id}', '${escapeHtml(gebruiker.naam)}')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-2.5 py-1 rounded">
+                  Verwijderen
+                </button>
+              ` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      const oplLijst = document.getElementById('adminOpleidingenLijst');
+      oplLijst.innerHTML = alleOpleidingen.map(opl => `
+        <div class="p-3 flex justify-between items-center text-sm">
+          <div>
+            <span class="font-bold">${escapeHtml(opl.naam)}</span>
+            <span class="text-xs text-zinc-500 ml-2">(Code: ${escapeHtml(opl.id)} • CREBO: ${escapeHtml(opl.crebo || '-')})</span>
+          </div>
+          <button onclick="verwijderOpleiding('${opl.id}')" class="text-xs text-red-600 hover:underline font-semibold">
+            Verwijderen
+          </button>
+        </div>
+      `).join('');
+    }
+
+    async function wijzigGebruikerVeld(id, veld, waarde) {
+      const { error } = await supabaseClient
+        .from('profielen')
+        .update({ [veld]: waarde })
+        .eq('id', id);
+
+      if (error) return toonMelding('Fout bij bijwerken: ' + error.message, true);
+      toonMelding('Gegevens bijgewerkt');
+      laadGegevens();
+    }
+
+    async function resetStudentVoortgang(id, naam) {
+      if (!confirm(`Weet je zeker dat je alle voortgang en notities van ${naam} wilt wissen?`)) return;
+      const { error } = await supabaseClient.from('voortgang').delete().eq('student_id', id);
+      if (error) return toonMelding('Fout bij resetten: ' + error.message, true);
+      toonMelding(`Voortgang van ${naam} is gereset`);
+      laadGegevens();
+    }
+
+    async function verwijderGebruiker(id, naam) {
+      if (!confirm(`Weet je zeker dat je het profiel en alle voortgang van ${naam} wilt verwijderen?`)) return;
+      const { error } = await supabaseClient.from('profielen').delete().eq('id', id);
+      if (error) return toonMelding('Fout bij verwijderen: ' + error.message, true);
+      toonMelding(`${naam} is verwijderd uit SkillTrack`);
+      laadGegevens();
+    }
+
+    async function voegOpleidingToe(e) {
+      e.preventDefault();
+      const id = document.getElementById('nieuweOplId').value.trim().toLowerCase();
+      const naam = document.getElementById('nieuweOplNaam').value.trim();
+      const crebo = document.getElementById('nieuweOplCrebo').value.trim();
+
+      const { error } = await supabaseClient.from('opleidingen').insert({ id, naam, crebo });
+      if (error) return toonMelding('Fout bij toevoegen: ' + error.message, true);
+
+      document.getElementById('nieuweOplId').value = '';
+      document.getElementById('nieuweOplNaam').value = '';
+      document.getElementById('nieuweOplCrebo').value = '';
+      toonMelding('Opleiding toegevoegd');
+      laadGegevens();
+    }
+
+    async function verwijderOpleiding(id) {
+      if (!confirm('Deze opleiding verwijderen uit de lijst?')) return;
+      const { error } = await supabaseClient.from('opleidingen').delete().eq('id', id);
+      if (error) return toonMelding('Fout bij verwijderen: ' + error.message, true);
+      toonMelding('Opleiding verwijderd');
+      laadGegevens();
+    }
+
+    function exporteerCsv() {
+      const regels = [['Naam student', 'Opleiding', 'SLBer', 'Afgeronde onderdelen', 'Totaal onderdelen', 'Percentage']];
+
+      alleStudenten.forEach(student => {
+        const items = alleVoortgang.filter(v => v.student_id === student.id && v.afgerond);
+        const totaal = student.opleiding === 'vakspecialist' ? 30 : 50;
+        const pct = Math.min(100, Math.round((items.length / totaal) * 100));
+        regels.push([
+          `"${student.naam}"`,
+          `"${student.opleiding}"`,
+          `"${student.slb_docent || ''}"`,
+          items.length,
+          totaal,
+          `${pct}%`
+        ]);
+      });
+
+      const csvInhoud = regels.map(r => r.join(';')).join('\n');
+      const blob = new Blob([csvInhoud], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SkillTrack_Voortgang_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
     function openStudentDetails(studentId) {
@@ -271,12 +543,12 @@
         lijstEl.innerHTML = items.map(item => `
           <div class="p-3 rounded border ${item.afgerond ? 'border-green-200 bg-green-50' : 'border-zinc-200 bg-zinc-50'}">
             <div class="flex justify-between items-center">
-              <span class="font-bold text-sm">${item.onderdeel_id}</span>
+              <span class="font-bold text-sm">${escapeHtml(item.onderdeel_id)}</span>
               <span class="text-xs font-bold px-2 py-0.5 rounded ${item.afgerond ? 'bg-green-600 text-white' : 'bg-zinc-300 text-zinc-700'}">
                 ${item.afgerond ? 'Afgerond' : 'Bezig'}
               </span>
             </div>
-            ${item.notitie ? `<p class="text-xs text-zinc-700 mt-2 bg-white p-2 rounded border border-zinc-200">Notitie: ${item.notitie}</p>` : ''}
+            ${item.notitie ? `<p class="text-xs text-zinc-700 mt-2 bg-white p-2 rounded border border-zinc-200">Notitie: ${escapeHtml(item.notitie)}</p>` : ''}
           </div>
         `).join('');
       }
@@ -288,19 +560,18 @@
       document.getElementById('detailModal').classList.add('hidden');
     }
 
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
     async function uitloggen() {
       await supabaseClient.auth.signOut();
       window.location.href = 'index.html';
     }
   </script>
-<footer class="bg-white border-t border-zinc-200 py-4 px-6 mt-8">
-  <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-zinc-500">
-    <div class="flex items-center gap-2">
-      <img src="logo-skilltrack.jpg" alt="SkillTrack" class="h-5 w-auto">
-      <span>SkillTrack • Voortgangsregistratie binnen Noorderpoort</span>
-    </div>
-    <div class="font-semibold text-zinc-600">Ontworpen en ontwikkeld door <span class="text-black font-bold">rejo-edu</span></div>
-  </div>
-</footer>
 </body>
 </html>
