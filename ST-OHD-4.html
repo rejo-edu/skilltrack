@@ -197,7 +197,8 @@
                 <div class="inline-flex bg-gray-100 p-1 rounded-lg border border-gray-200">
                     <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1 rounded-md text-xs font-bold transition bg-np-black text-white">Alles</button>
                     <button onclick="setFilter('open')" id="filter-open" class="px-3 py-1 rounded-md text-xs font-bold transition text-gray-600 hover:text-np-black">Openstaand</button>
-                    <button onclick="setFilter('done')" id="filter-done" class="px-3 py-1 rounded-md text-xs font-bold transition text-gray-600 hover:text-np-black">Afgerond</button>
+                    <button onclick="setFilter('submitted')" id="filter-submitted" class="px-3 py-1 rounded-md text-xs font-bold transition text-gray-600 hover:text-np-black">Ingeleverd</button>
+                    <button onclick="setFilter('done')" id="filter-done" class="px-3 py-1 rounded-md text-xs font-bold transition text-gray-600 hover:text-np-black">Behaald</button>
                 </div>
             </div>
         </div>
@@ -389,15 +390,29 @@
                 </div>
             </div>
 
-            <!-- Modal Footer -->
-            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-                <button onclick="closeItemModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-semibold text-sm hover:bg-gray-100 transition">
-                    Sluiten en opslaan
-                </button>
-                <button id="modal-toggle-btn" onclick="toggleCurrentModalItem()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2">
-                    <i class="ph-bold ph-check"></i>
-                    <span>Markeer als afgerond</span>
-                </button>
+            <!-- Modal Footer met 3 statussen -->
+            <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 space-y-3 shrink-0">
+                <div>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-gray-500 block mb-2">Status van dit onderdeel</span>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" id="status-btn-open" onclick="setModalItemStatus('open')" class="px-3 py-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1.5">
+                            <span>Nog open</span>
+                        </button>
+                        <button type="button" id="status-btn-submitted" onclick="setModalItemStatus('ingeleverd')" class="px-3 py-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1.5">
+                            <i class="ph-bold ph-clock"></i>
+                            <span>Ingeleverd</span>
+                        </button>
+                        <button type="button" id="status-btn-done" onclick="setModalItemStatus('behaald')" class="px-3 py-2 rounded-xl font-bold text-xs border transition flex items-center justify-center gap-1.5">
+                            <i class="ph-bold ph-check"></i>
+                            <span>Behaald</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex justify-end">
+                    <button onclick="closeItemModal()" class="w-full sm:w-auto px-5 py-2 rounded-xl bg-np-black text-white font-bold text-xs hover:bg-gray-800 transition">
+                        Sluiten en opslaan
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1036,6 +1051,7 @@
         let userState = {
             studentName: '',
             completed: {},
+            statuses: {},
             notes: {},
             customTeachers: null,
             customUrls: {},
@@ -1048,8 +1064,21 @@
             }
         };
 
-        let activeFilter = 'all'; // 'all', 'open', 'done'
+        let activeFilter = 'all'; // 'all', 'open', 'submitted', 'done'
         let activeModalItemId = null;
+
+        function getItemStatus(itemId) {
+            if (userState.statuses && userState.statuses[itemId]) {
+                return userState.statuses[itemId];
+            }
+            return userState.completed[itemId] ? 'behaald' : 'open';
+        }
+
+        function setItemStatus(itemId, nieuweStatus) {
+            if (!userState.statuses) userState.statuses = {};
+            userState.statuses[itemId] = nieuweStatus;
+            userState.completed[itemId] = (nieuweStatus === 'behaald');
+        }
 
         // Haal de gekoppelde itslearning URL op voor een specifiek onderdeel
         function getItslearningUrl(item) {
@@ -1101,6 +1130,12 @@
                 if (sourceData) {
                     userState.studentName = sourceData.studentName || '';
                     userState.completed = sourceData.completed || {};
+                    userState.statuses = sourceData.statuses || {};
+                    Object.keys(userState.completed).forEach(k => {
+                        if (userState.completed[k] && !userState.statuses[k]) {
+                            userState.statuses[k] = 'behaald';
+                        }
+                    });
                     userState.notes = sourceData.notes || {};
                     userState.customUrls = sourceData.customUrls || {};
                     userState.lastUpdated = sourceData.lastUpdated || Date.now();
@@ -1131,10 +1166,10 @@
             saveProgress();
         }
 
-        // Stel filter in (Alles, Openstaand, Afgerond)
+        // Stel filter in (Alles, Openstaand, Ingeleverd, Behaald)
         function setFilter(filterType) {
             activeFilter = filterType;
-            ['all', 'open', 'done'].forEach(type => {
+            ['all', 'open', 'submitted', 'done'].forEach(type => {
                 const btn = document.getElementById('filter-' + type);
                 if (!btn) return;
                 if (type === filterType) {
@@ -1262,40 +1297,61 @@
 
                 let itemsHtml = '';
                 pillar.items.forEach((item, idx) => {
-                    const isDone = !!userState.completed[item.id];
-                    if (activeFilter === 'open' && isDone) return;
+                    const status = getItemStatus(item.id);
+                    const isDone = status === 'behaald';
+                    const isSubmitted = status === 'ingeleverd';
+                    if (activeFilter === 'open' && status !== 'open') return;
+                    if (activeFilter === 'submitted' && !isSubmitted) return;
                     if (activeFilter === 'done' && !isDone) return;
 
                     const noteText = (userState.notes[item.id] || '').trim();
                     const teacher = getTeacherForItem(item);
                     const itsUrl = getItslearningUrl(item);
 
+                    const circleClass = isDone
+                        ? 'bg-np-green border-np-green text-white'
+                        : (isSubmitted
+                            ? 'bg-orange-500 border-orange-500 text-white'
+                            : 'bg-white border-np-black text-np-black hover:bg-np-yellow');
+
+                    const circleContent = isDone
+                        ? '<i class="ph-bold ph-check text-xl"></i>'
+                        : (isSubmitted ? '<i class="ph-bold ph-clock text-xl"></i>' : (idx + 1));
+
+                    const circleTitle = isDone
+                        ? 'Behaald (klik om terug te zetten op open)'
+                        : (isSubmitted ? 'Ingeleverd (klik om op behaald te zetten)' : 'Open (klik om op ingeleverd te zetten)');
+
+                    const cardClass = isDone
+                        ? 'border-green-600/40 bg-green-50/20'
+                        : (isSubmitted ? 'border-orange-400 bg-orange-50/40' : 'border-gray-200 hover:border-np-black');
+
+                    const badgeClass = isDone
+                        ? 'bg-np-green text-white'
+                        : (isSubmitted ? 'bg-orange-500 text-white' : 'bg-np-yellow text-np-black');
+
+                    const badgeLabel = isDone
+                        ? 'Behaald'
+                        : (isSubmitted ? 'Ingeleverd' : escapeHtml(item.subject));
+
                     itemsHtml += `
                         <div class="relative z-10 flex items-start gap-4 group">
-                            <!-- Klikbare stap-cirkel voor direct afvinken -->
+                            <!-- Klikbare stap-cirkel voor statuswissel: Open -> Ingeleverd -> Behaald -->
                             <button 
                                 onclick="toggleItemDirect(event, '${item.id}')"
-                                title="${isDone ? 'Markeer als nog niet afgerond' : 'Direct afvinken'}"
-                                class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-extrabold text-base transition-all shadow-xs border-2 ${
-                                    isDone 
-                                        ? 'bg-np-green border-np-green text-white' 
-                                        : 'bg-white border-np-black text-np-black hover:bg-np-yellow'
-                                }">
-                                ${isDone ? '<i class="ph-bold ph-check text-xl"></i>' : (idx + 1)}
+                                title="${circleTitle}"
+                                class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-extrabold text-base transition-all shadow-xs border-2 ${circleClass}">
+                                ${circleContent}
                             </button>
 
                             <!-- Kaart van de deelopdracht -->
                             <div 
                                 onclick="openItemModal('${item.id}')"
-                                class="flex-1 bg-white hover:bg-gray-50 rounded-xl p-4 border-2 transition cursor-pointer ${
-                                    isDone ? 'border-green-600/40 bg-green-50/20' : 'border-gray-200 hover:border-np-black'
-                                }">
+                                class="flex-1 bg-white hover:bg-gray-50 rounded-xl p-4 border-2 transition cursor-pointer ${cardClass}">
                                 <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-md ${
-                                            isDone ? 'bg-np-green text-white' : 'bg-np-yellow text-np-black'
-                                        }">
-                                            ${isDone ? 'Afgerond' : escapeHtml(item.subject)}
+                                        <span class="text-xs font-bold px-2.5 py-0.5 rounded-md ${badgeClass}">
+                                            ${badgeLabel}
                                         </span>
                                         <span class="inline-flex items-center gap-1 text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-0.5 rounded-md">
                                             <i class="ph-fill ph-user-circle text-np-black"></i>
@@ -1391,25 +1447,36 @@
 
                 let subItemsHtml = '';
                 subject.items.forEach(item => {
-                    const isDone = !!userState.completed[item.id];
-                    if (activeFilter === 'open' && isDone) return;
+                    const status = getItemStatus(item.id);
+                    const isDone = status === 'behaald';
+                    const isSubmitted = status === 'ingeleverd';
+                    if (activeFilter === 'open' && status !== 'open') return;
+                    if (activeFilter === 'submitted' && !isSubmitted) return;
                     if (activeFilter === 'done' && !isDone) return;
 
                     const noteText = (userState.notes[item.id] || '').trim();
                     const teacher = getTeacherForItem(item);
                     const itsUrl = getItslearningUrl(item);
 
+                    const avoRowClass = isDone
+                        ? 'bg-green-50/30 border-green-600/30'
+                        : (isSubmitted ? 'bg-orange-50/50 border-orange-300' : 'bg-gray-50 border-gray-200 hover:border-np-black');
+
+                    const avoBtnClass = isDone
+                        ? 'bg-np-green border-np-green text-white'
+                        : (isSubmitted ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-gray-400 hover:border-np-black');
+
+                    const avoBtnIcon = isDone
+                        ? '<i class="ph-bold ph-check text-xs"></i>'
+                        : (isSubmitted ? '<i class="ph-bold ph-clock text-xs"></i>' : '');
+
                     subItemsHtml += `
-                        <div class="flex items-center justify-between gap-2 p-2.5 rounded-lg border transition ${
-                            isDone ? 'bg-green-50/30 border-green-600/30' : 'bg-gray-50 border-gray-200 hover:border-np-black'
-                        }">
+                        <div class="flex items-center justify-between gap-2 p-2.5 rounded-lg border transition ${avoRowClass}">
                             <div class="flex items-center gap-2.5 min-w-0 flex-1">
                                 <button 
                                     onclick="toggleItemDirect(event, '${item.id}')"
-                                    class="w-6 h-6 rounded-md flex items-center justify-center shrink-0 border transition ${
-                                        isDone ? 'bg-np-green border-np-green text-white' : 'bg-white border-gray-400 hover:border-np-black'
-                                    }">
-                                    ${isDone ? '<i class="ph-bold ph-check text-xs"></i>' : ''}
+                                    class="w-6 h-6 rounded-md flex items-center justify-center shrink-0 border transition ${avoBtnClass}">
+                                    ${avoBtnIcon}
                                 </button>
                                 <button onclick="openItemModal('${item.id}')" class="text-left min-w-0 flex-1">
                                     <div class="text-xs font-bold text-np-black truncate">${escapeHtml(item.title)}</div>
@@ -1535,12 +1602,57 @@
             renderAvoSubjects();
         }
 
-        // Vink een onderdeel direct aan of uit via het vinkvakje
+        // Wissel status bij direct klikken: Open -> Ingeleverd (oranje) -> Behaald (groen) -> Open
         function toggleItemDirect(event, itemId) {
             event.stopPropagation();
-            userState.completed[itemId] = !userState.completed[itemId];
+            const huidig = getItemStatus(itemId);
+            const volgende = huidig === 'open' ? 'ingeleverd' : (huidig === 'ingeleverd' ? 'behaald' : 'open');
+            setItemStatus(itemId, volgende);
             saveProgress();
             renderAll();
+        }
+
+        function updateModalStatusButtons(status) {
+            const statusBadge = document.getElementById('modal-status-badge');
+            const btnOpen = document.getElementById('status-btn-open');
+            const btnSub = document.getElementById('status-btn-submitted');
+            const btnDone = document.getElementById('status-btn-done');
+
+            if (status === 'behaald') {
+                statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-np-green text-white';
+                statusBadge.textContent = 'Behaald';
+            } else if (status === 'ingeleverd') {
+                statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-orange-500 text-white';
+                statusBadge.textContent = 'Ingeleverd (wacht op docent)';
+            } else {
+                statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-np-yellow text-np-black';
+                statusBadge.textContent = 'Nog open';
+            }
+
+            btnOpen.className = status === 'open'
+                ? 'px-3 py-2 rounded-xl font-bold text-xs border-2 border-np-black bg-np-yellow text-np-black flex items-center justify-center gap-1.5'
+                : 'px-3 py-2 rounded-xl font-bold text-xs border border-gray-300 bg-white text-gray-600 hover:border-np-black flex items-center justify-center gap-1.5';
+
+            btnSub.className = status === 'ingeleverd'
+                ? 'px-3 py-2 rounded-xl font-bold text-xs border-2 border-orange-600 bg-orange-500 text-white flex items-center justify-center gap-1.5'
+                : 'px-3 py-2 rounded-xl font-bold text-xs border border-gray-300 bg-white text-gray-600 hover:border-orange-500 flex items-center justify-center gap-1.5';
+
+            btnDone.className = status === 'behaald'
+                ? 'px-3 py-2 rounded-xl font-bold text-xs border-2 border-green-700 bg-np-green text-white flex items-center justify-center gap-1.5'
+                : 'px-3 py-2 rounded-xl font-bold text-xs border border-gray-300 bg-white text-gray-600 hover:border-np-green flex items-center justify-center gap-1.5';
+        }
+
+        function setModalItemStatus(nieuweStatus) {
+            if (!activeModalItemId) return;
+            const noteVal = document.getElementById('modal-note').value;
+            userState.notes[activeModalItemId] = noteVal;
+            setItemStatus(activeModalItemId, nieuweStatus);
+            updateModalStatusButtons(nieuweStatus);
+            saveProgress();
+            renderAll();
+            if (typeof syncItemNaarDatabase === 'function') {
+                syncItemNaarDatabase(activeModalItemId);
+            }
         }
 
         // Open het detailvenster voor een specifiek onderdeel
@@ -1550,7 +1662,6 @@
 
             activeModalItemId = itemId;
             const { item, groupTitle } = found;
-            const isDone = !!userState.completed[itemId];
             const teacher = getTeacherForItem(item);
             const itsUrl = getItslearningUrl(item);
 
@@ -1572,20 +1683,7 @@
             document.getElementById('modal-teacher-email').textContent = teacher.email;
             document.getElementById('modal-teams-link').href = buildTeamsUrl(teacher, item.title);
 
-            const statusBadge = document.getElementById('modal-status-badge');
-            const toggleBtn = document.getElementById('modal-toggle-btn');
-
-            if (isDone) {
-                statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-np-green text-white';
-                statusBadge.textContent = 'Afgerond';
-                toggleBtn.className = 'w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 bg-gray-200 hover:bg-gray-300 text-np-black';
-                toggleBtn.innerHTML = '<i class="ph-bold ph-arrow-counter-clockwise"></i><span>Zet terug op openstaand</span>';
-            } else {
-                statusBadge.className = 'px-3 py-1 rounded-full text-xs font-bold bg-np-yellow text-np-black';
-                statusBadge.textContent = 'Nog open';
-                toggleBtn.className = 'w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 bg-np-yellow hover:bg-np-yellowHover text-np-black shadow-xs';
-                toggleBtn.innerHTML = '<i class="ph-bold ph-check"></i><span>Markeer als afgerond</span>';
-            }
+            updateModalStatusButtons(getItemStatus(itemId));
 
             document.getElementById('item-modal').classList.remove('hidden');
         }
@@ -1735,13 +1833,12 @@
             document.getElementById('item-modal').classList.add('hidden');
         }
 
-        // Wissel de afgerond status vanuit het detailvenster
+        // Wissel de status vanuit het detailvenster
         function toggleCurrentModalItem() {
             if (!activeModalItemId) return;
-            const noteVal = document.getElementById('modal-note').value;
-            userState.notes[activeModalItemId] = noteVal;
-            userState.completed[activeModalItemId] = !userState.completed[activeModalItemId];
-            saveProgress();
+            const huidig = getItemStatus(activeModalItemId);
+            const volgende = huidig === 'open' ? 'ingeleverd' : (huidig === 'ingeleverd' ? 'behaald' : 'open');
+            setModalItemStatus(volgende);
             closeItemModal();
         }
 
@@ -1756,6 +1853,7 @@
 
         function confirmResetProgress() {
             userState.completed = {};
+            userState.statuses = {};
             userState.notes = {};
             saveProgress();
             closeResetModal();
