@@ -1,4 +1,4 @@
-// skilltrack-sync.js - Koppelt ST-VSO-26.html en ST-OHD-4.html aan Supabase en regelt de huisstijl
+// skilltrack-sync.js - Koppelt ST-VSO-26.html en ST-OHD-4.html aan Supabase en regelt statussen (open / ingeleverd / behaald)
 const SUPABASE_URL = 'https://zusxpspppahpnnwehyly.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_qt8y504lX4oB0VBoRmX9AQ_1bBgE9L2';
 
@@ -14,7 +14,7 @@ function initSupabaseSync() {
 }
 
 function pasBovenbalkEnFooterAan() {
-  // 1. Vervang de oude knop 'Opslaan in bestand' door een strak cloud-label met groen vinkje
+  // 1. Vervang de oude knop 'Opslaan in bestand' door een cloud-label met groen vinkje
   const oudeOpslaanKnop = document.getElementById('save-file-btn');
   if (oudeOpslaanKnop) {
     const cloudLabel = document.createElement('div');
@@ -103,12 +103,17 @@ async function laadStudentUitDatabase() {
 
   if (!error && voortgangRows) {
     const dbCompleted = {};
+    const dbStatuses = {};
     const dbNotes = {};
+
     voortgangRows.forEach(row => {
-      dbCompleted[row.onderdeel_id] = !!row.afgerond;
+      const status = row.status || (row.afgerond ? 'behaald' : 'open');
+      dbStatuses[row.onderdeel_id] = status;
+      dbCompleted[row.onderdeel_id] = (status === 'behaald');
       if (row.notitie) dbNotes[row.onderdeel_id] = row.notitie;
     });
 
+    userState.statuses = dbStatuses;
     userState.completed = dbCompleted;
     userState.notes = dbNotes;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(userState));
@@ -124,13 +129,18 @@ async function syncItemNaarDatabase(itemId) {
     statusEl.innerHTML = `<i class="ph-bold ph-arrows-clockwise animate-spin text-np-yellow text-base"></i><span>Opslaan...</span>`;
   }
 
-  const isAfgerond = !!userState.completed[itemId];
+  const huidigeStatus = (userState.statuses && userState.statuses[itemId])
+    ? userState.statuses[itemId]
+    : (userState.completed[itemId] ? 'behaald' : 'open');
+
+  const isAfgerond = (huidigeStatus === 'behaald');
   const notitieTekst = (userState.notes[itemId] || '').trim();
 
   await sbClient.from('voortgang').upsert({
     student_id: currentStudentId,
     onderdeel_id: itemId,
     afgerond: isAfgerond,
+    status: huidigeStatus,
     notitie: notitieTekst,
     bijgewerkt_op: new Date().toISOString()
   }, { onConflict: 'student_id,onderdeel_id' });
