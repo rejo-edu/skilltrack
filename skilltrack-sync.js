@@ -14,7 +14,7 @@ function initSupabaseSync() {
 }
 
 function pasBovenbalkEnFooterAan() {
-  // 1. Vervang de oude gele knop 'Opslaan in bestand' door een strak cloud-label met groen vinkje
+  // 1. Vervang de oude knop 'Opslaan in bestand' door een strak cloud-label met groen vinkje
   const oudeOpslaanKnop = document.getElementById('save-file-btn');
   if (oudeOpslaanKnop) {
     const cloudLabel = document.createElement('div');
@@ -48,8 +48,8 @@ function pasBovenbalkEnFooterAan() {
   }
 
   // 3. Voeg SkillTrack-logo en rejo-edu credits toe aan de voettekst onderaan
-  const footer = document.querySelector('footer');
-  if (footer && !document.getElementById('rejo-edu-credits')) {
+  const footerEl = document.querySelector('footer');
+  if (footerEl && !document.getElementById('rejo-edu-credits')) {
     const creditBalk = document.createElement('div');
     creditBalk.id = 'rejo-edu-credits';
     creditBalk.className = 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 mt-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500';
@@ -64,27 +64,7 @@ function pasBovenbalkEnFooterAan() {
         Ontworpen en ontwikkeld door <span class="text-np-black font-extrabold">rejo-edu</span>
       </div>
     `;
-    footer.appendChild(creditBalk);
-  }
-
-  // 4. Voeg SkillTrack-logo en rejo-edu credits toe aan de voettekst onderaan
-  const footer = document.querySelector('footer');
-  if (footer && !document.getElementById('rejo-edu-credits')) {
-    const creditBalk = document.createElement('div');
-    creditBalk.id = 'rejo-edu-credits';
-    creditBalk.className = 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 mt-4 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500';
-    creditBalk.innerHTML = `
-      <div class="flex items-center gap-2.5">
-        <img src="logo-skilltrack.jpg" alt="SkillTrack" class="h-6 w-auto rounded" />
-        <span class="font-bold text-np-black">SkillTrack</span>
-        <span>•</span>
-        <span>Digitale leerroute en voortgangsmonitor</span>
-      </div>
-      <div class="font-semibold text-gray-600">
-        Ontworpen en ontwikkeld door <span class="text-np-black font-extrabold">rejo-edu</span>
-      </div>
-    `;
-    footer.appendChild(creditBalk);
+    footerEl.appendChild(creditBalk);
   }
 }
 
@@ -162,20 +142,26 @@ async function syncItemNaarDatabase(itemId) {
 
 const origineleToggleItemDirect = window.toggleItemDirect;
 window.toggleItemDirect = function(event, itemId) {
-  origineleToggleItemDirect(event, itemId);
+  if (typeof origineleToggleItemDirect === 'function') {
+    origineleToggleItemDirect(event, itemId);
+  }
   syncItemNaarDatabase(itemId);
 };
 
 const origineleCloseItemModal = window.closeItemModal;
 window.closeItemModal = function() {
   const itemId = activeModalItemId;
-  origineleCloseItemModal();
+  if (typeof origineleCloseItemModal === 'function') {
+    origineleCloseItemModal();
+  }
   if (itemId) syncItemNaarDatabase(itemId);
 };
 
 const origineleConfirmResetProgress = window.confirmResetProgress;
 window.confirmResetProgress = async function() {
-  origineleConfirmResetProgress();
+  if (typeof origineleConfirmResetProgress === 'function') {
+    origineleConfirmResetProgress();
+  }
   if (sbClient && currentStudentId) {
     await sbClient.from('voortgang').delete().eq('student_id', currentStudentId);
   }
