@@ -44,11 +44,22 @@
   <!-- HOOFDWEERGAVE 1: SLB OVERZICHT VOOR DOCENTEN -->
   <main id="slbWeergave" class="flex-grow max-w-6xl w-full mx-auto p-6 space-y-6">
 
+    <!-- Actie-melding bovenaan zodra er ingeleverde opdrachten klaarstaan -->
+    <div id="actieBanner" class="hidden bg-orange-50 border-2 border-orange-500 rounded-lg p-4 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <span class="bg-orange-500 text-white text-xs font-extrabold px-2.5 py-1 rounded uppercase">Actie docent</span>
+        <p id="actieBannerTekst" class="text-sm font-bold text-orange-950"></p>
+      </div>
+      <button onclick="zetFilterOpIngeleverd()" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3.5 py-2 rounded transition">
+        Toon alleen ingeleverd werk
+      </button>
+    </div>
+
     <div class="bg-white p-6 rounded-lg shadow-sm border border-zinc-200 space-y-4">
       <div class="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h1 class="text-2xl font-bold">Voortgang SLB-studenten</h1>
-          <p class="text-sm text-zinc-600">Bekijk de actuele status en notities van je studenten.</p>
+          <p class="text-sm text-zinc-600">Bekijk de actuele status, ingeleverde opdrachten en notities van je studenten.</p>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="exporteerCsv()" class="bg-zinc-100 hover:bg-zinc-200 text-black border border-zinc-300 text-xs font-bold px-3.5 py-2 rounded transition">
@@ -61,7 +72,7 @@
       </div>
 
       <!-- Filterbalk -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-zinc-100">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 pt-3 border-t border-zinc-100">
         <div>
           <label class="block text-xs font-bold uppercase text-zinc-500 mb-1">SLB'er</label>
           <select id="filterSlb" onchange="filterStudenten()" class="w-full px-3 py-2 border border-zinc-300 rounded text-sm bg-white focus:outline-none focus:border-black">
@@ -82,6 +93,14 @@
         </div>
 
         <div>
+          <label class="block text-xs font-bold uppercase text-zinc-500 mb-1">Statusfilter</label>
+          <select id="filterStatus" onchange="filterStudenten()" class="w-full px-3 py-2 border border-zinc-300 rounded text-sm bg-white focus:outline-none focus:border-black">
+            <option value="ALLE">Alle studenten</option>
+            <option value="INGELEVERD">Met ingeleverd werk (actie)</option>
+          </select>
+        </div>
+
+        <div>
           <label class="block text-xs font-bold uppercase text-zinc-500 mb-1">Zoek op naam</label>
           <input type="text" id="filterZoek" oninput="filterStudenten()" placeholder="Typ naam van student..." class="w-full px-3 py-2 border border-zinc-300 rounded text-sm focus:outline-none focus:border-black">
         </div>
@@ -97,7 +116,7 @@
               <th class="py-3.5 px-4 font-semibold">Student</th>
               <th class="py-3.5 px-4 font-semibold">Opleiding</th>
               <th class="py-3.5 px-4 font-semibold">SLB'er</th>
-              <th class="py-3.5 px-4 font-semibold">Voortgang</th>
+              <th class="py-3.5 px-4 font-semibold">Voortgang & Acties</th>
               <th class="py-3.5 px-4 font-semibold">Laatste update</th>
               <th class="py-3.5 px-4 font-semibold text-right">Actie</th>
             </tr>
@@ -196,7 +215,7 @@
         </div>
 
         <div>
-          <h3 class="font-bold text-base mb-3">Afgevinkte onderdelen en notities</h3>
+          <h3 class="font-bold text-base mb-3">Ingeleverde en behaalde onderdelen</h3>
           <div id="modalOnderdelenLijst" class="space-y-3"></div>
         </div>
       </div>
@@ -234,6 +253,11 @@
     let huidigeGebruikerId = null;
     let isSuperAdmin = false;
     let adminActief = false;
+
+    function getItemStatus(item) {
+      if (item.status) return item.status;
+      return item.afgerond ? 'behaald' : 'open';
+    }
 
     window.addEventListener('DOMContentLoaded', async () => {
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -276,6 +300,11 @@
       box.className = `fixed top-20 left-1/2 transform -translate-x-1/2 max-w-md w-full p-4 rounded shadow-xl text-sm font-bold z-50 text-center ${isFout ? 'bg-red-600 text-white' : 'bg-black text-[#FFCC00] border border-[#FFCC00]'}`;
       box.classList.remove('hidden');
       setTimeout(() => box.classList.add('hidden'), 3500);
+    }
+
+    function zetFilterOpIngeleverd() {
+      document.getElementById('filterStatus').value = 'INGELEVERD';
+      filterStudenten();
     }
 
     function wisselWeergave() {
@@ -321,13 +350,42 @@
     function filterStudenten() {
       const gekozenSlb = document.getElementById('filterSlb').value;
       const gekozenOpleiding = document.getElementById('filterOpleiding').value;
+      const gekozenStatus = document.getElementById('filterStatus').value;
       const zoekTekst = document.getElementById('filterZoek').value.toLowerCase();
 
-      const gefilterd = alleStudenten.filter(student => {
+      const basisLijst = alleStudenten.filter(student => {
         const matchSlb = gekozenSlb === 'ALLE' || student.slb_docent === gekozenSlb;
         const matchOpl = gekozenOpleiding === 'ALLE' || student.opleiding === gekozenOpleiding;
         const matchNaam = student.naam.toLowerCase().includes(zoekTekst);
         return matchSlb && matchOpl && matchNaam;
+      });
+
+      // Tel hoeveel studenten binnen deze SLB-selectie ingeleverde opdrachten hebben
+      let totaalIngeleverdeItems = 0;
+      let studentenMetActie = 0;
+
+      basisLijst.forEach(student => {
+        const ingeleverd = alleVoortgang.filter(v => v.student_id === student.id && getItemStatus(v) === 'ingeleverd').length;
+        if (ingeleverd > 0) {
+          totaalIngeleverdeItems += ingeleverd;
+          studentenMetActie++;
+        }
+      });
+
+      const banner = document.getElementById('actieBanner');
+      if (totaalIngeleverdeItems > 0) {
+        document.getElementById('actieBannerTekst').textContent =
+          `Er staan ${totaalIngeleverdeItems} ingeleverde opdrachten klaar om na te kijken (bij ${studentenMetActie} ${studentenMetActie === 1 ? 'student' : 'studenten'}).`;
+        banner.classList.remove('hidden');
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      const gefilterd = basisLijst.filter(student => {
+        if (gekozenStatus === 'INGELEVERD') {
+          return alleVoortgang.some(v => v.student_id === student.id && getItemStatus(v) === 'ingeleverd');
+        }
+        return true;
       });
 
       tekenTabel(gefilterd);
@@ -344,9 +402,10 @@
 
       tbody.innerHTML = studentenLijst.map(student => {
         const studentItems = alleVoortgang.filter(v => v.student_id === student.id);
-        const afgerondAantal = studentItems.filter(v => v.afgerond).length;
+        const behaaldAantal = studentItems.filter(v => getItemStatus(v) === 'behaald').length;
+        const ingeleverdAantal = studentItems.filter(v => getItemStatus(v) === 'ingeleverd').length;
         const totaalVoorOpleiding = student.opleiding === 'vakspecialist' ? 30 : 50;
-        const percentage = Math.min(100, Math.round((afgerondAantal / totaalVoorOpleiding) * 100));
+        const percentage = Math.min(100, Math.round((behaaldAantal / totaalVoorOpleiding) * 100));
 
         let laatsteDatum = 'Nog geen activiteit';
         if (studentItems.length > 0) {
@@ -359,8 +418,17 @@
         const opleidingLabel = student.opleiding === 'vakspecialist' ? 'Vakspecialist (25997)' : 'Ondernemer Handel (27121)';
 
         return `
-          <tr class="hover:bg-zinc-50 transition">
-            <td class="py-4 px-4 font-bold text-zinc-900">${escapeHtml(student.naam)}</td>
+          <tr class="hover:bg-zinc-50 transition ${ingeleverdAantal > 0 ? 'bg-orange-50/40' : ''}">
+            <td class="py-4 px-4 font-bold text-zinc-900">
+              <div class="flex flex-wrap items-center gap-2">
+                <span>${escapeHtml(student.naam)}</span>
+                ${ingeleverdAantal > 0 ? `
+                  <span class="bg-orange-500 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-full">
+                    ${ingeleverdAantal} ingeleverd
+                  </span>
+                ` : ''}
+              </div>
+            </td>
             <td class="py-4 px-4 text-zinc-600">${opleidingLabel}</td>
             <td class="py-4 px-4 text-zinc-600">${escapeHtml(student.slb_docent || '-')}</td>
             <td class="py-4 px-4">
@@ -368,7 +436,7 @@
                 <div class="w-28 bg-zinc-200 rounded-full h-2.5 overflow-hidden">
                   <div class="bg-[#FFCC00] h-2.5 rounded-full" style="width: ${percentage}%"></div>
                 </div>
-                <span class="text-xs font-bold">${afgerondAantal}/${totaalVoorOpleiding} (${percentage}%)</span>
+                <span class="text-xs font-bold">${behaaldAantal}/${totaalVoorOpleiding} (${percentage}%)</span>
               </div>
             </td>
             <td class="py-4 px-4 text-zinc-500 text-xs">${laatsteDatum}</td>
@@ -499,17 +567,20 @@
     }
 
     function exporteerCsv() {
-      const regels = [['Naam student', 'Opleiding', 'SLBer', 'Afgeronde onderdelen', 'Totaal onderdelen', 'Percentage']];
+      const regels = [['Naam student', 'Opleiding', 'SLBer', 'Ingeleverd (nakijken)', 'Behaald', 'Totaal onderdelen', 'Percentage behaald']];
 
       alleStudenten.forEach(student => {
-        const items = alleVoortgang.filter(v => v.student_id === student.id && v.afgerond);
+        const items = alleVoortgang.filter(v => v.student_id === student.id);
+        const behaald = items.filter(v => getItemStatus(v) === 'behaald').length;
+        const ingeleverd = items.filter(v => getItemStatus(v) === 'ingeleverd').length;
         const totaal = student.opleiding === 'vakspecialist' ? 30 : 50;
-        const pct = Math.min(100, Math.round((items.length / totaal) * 100));
+        const pct = Math.min(100, Math.round((behaald / totaal) * 100));
         regels.push([
           `"${student.naam}"`,
           `"${student.opleiding}"`,
           `"${student.slb_docent || ''}"`,
-          items.length,
+          ingeleverd,
+          behaald,
           totaal,
           `${pct}%`
         ]);
@@ -527,7 +598,13 @@
 
     function openStudentDetails(studentId) {
       const student = alleStudenten.find(s => s.id === studentId);
-      const items = alleVoortgang.filter(v => v.student_id === studentId);
+      const items = alleVoortgang.filter(v => v.student_id === studentId && getItemStatus(v) !== 'open');
+
+      // Sorteer zodat 'ingeleverd' bovenaan staat voor snelle actie van de docent
+      items.sort((a, b) => {
+        const volgorde = { ingeleverd: 0, behaald: 1 };
+        return (volgorde[getItemStatus(a)] ?? 2) - (volgorde[getItemStatus(b)] ?? 2);
+      });
 
       document.getElementById('modalStudentNaam').textContent = student.naam;
       document.getElementById('modalOpleiding').textContent = student.opleiding === 'vakspecialist' ? 'Vakspecialist Ondernemer' : 'Ondernemer Handel';
@@ -535,19 +612,27 @@
 
       const lijstEl = document.getElementById('modalOnderdelenLijst');
       if (items.length === 0) {
-        lijstEl.innerHTML = `<p class="text-sm text-zinc-500">Deze student heeft nog geen onderdelen afgevinkt of notities opgeslagen.</p>`;
+        lijstEl.innerHTML = `<p class="text-sm text-zinc-500">Deze student heeft nog geen onderdelen op ingeleverd of behaald gezet.</p>`;
       } else {
-        lijstEl.innerHTML = items.map(item => `
-          <div class="p-3 rounded border ${item.afgerond ? 'border-green-200 bg-green-50' : 'border-zinc-200 bg-zinc-50'}">
-            <div class="flex justify-between items-center">
-              <span class="font-bold text-sm">${escapeHtml(item.onderdeel_id)}</span>
-              <span class="text-xs font-bold px-2 py-0.5 rounded ${item.afgerond ? 'bg-green-600 text-white' : 'bg-zinc-300 text-zinc-700'}">
-                ${item.afgerond ? 'Afgerond' : 'Bezig'}
-              </span>
+        lijstEl.innerHTML = items.map(item => {
+          const st = getItemStatus(item);
+          const isIngeleverd = st === 'ingeleverd';
+          const kaartKleur = isIngeleverd ? 'border-orange-300 bg-orange-50' : 'border-green-200 bg-green-50';
+          const badgeKleur = isIngeleverd ? 'bg-orange-500 text-white' : 'bg-green-600 text-white';
+          const badgeTekst = isIngeleverd ? 'Ingeleverd (actie docent)' : 'Behaald';
+
+          return `
+            <div class="p-3 rounded border ${kaartKleur}">
+              <div class="flex justify-between items-center gap-2">
+                <span class="font-bold text-sm">${escapeHtml(item.onderdeel_id)}</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded ${badgeKleur}">
+                  ${badgeTekst}
+                </span>
+              </div>
+              ${item.notitie ? `<p class="text-xs text-zinc-700 mt-2 bg-white p-2 rounded border border-zinc-200">Notitie: ${escapeHtml(item.notitie)}</p>` : ''}
             </div>
-            ${item.notitie ? `<p class="text-xs text-zinc-700 mt-2 bg-white p-2 rounded border border-zinc-200">Notitie: ${escapeHtml(item.notitie)}</p>` : ''}
-          </div>
-        `).join('');
+          `;
+        }).join('');
       }
 
       document.getElementById('detailModal').classList.remove('hidden');
