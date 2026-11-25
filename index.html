@@ -177,13 +177,17 @@
     const SUPABASE_URL = 'https://zusxpspppahpnnwehyly.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_qt8y504lX4oB0VBoRmX9AQ_1bBgE9L2';
     const DOCENT_GEHEIME_CODE = 'BOS7-DOCENT';
+    const SUPER_ADMIN_EMAIL = 'r.dejonge@noorderpoort.nl';
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let huidigeModus = 'inloggen';
     let huidigeGebruiker = null;
     let inHerstelModus = false;
 
-    // Luister naar wachtwoordherstel vanuit een e-maillink
+    function isSuperAdminEmail(user) {
+      return ((user && user.email) || '').toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+    }
+
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         inHerstelModus = true;
@@ -193,7 +197,6 @@
     });
 
     window.addEventListener('DOMContentLoaded', async () => {
-      // Controleer of de URL een herstel-token bevat
       if (window.location.hash && window.location.hash.includes('type=recovery')) {
         inHerstelModus = true;
         verbergAlleSchermen();
@@ -319,15 +322,22 @@
         .eq('id', huidigeGebruiker.id)
         .single();
 
+      const effectieveRol = isSuperAdminEmail(huidigeGebruiker)
+        ? 'docent'
+        : (profiel ? profiel.rol : null);
+
       const urlParams = new URLSearchParams(window.location.search);
-      if (profiel && !urlParams.has('profiel')) {
-        stuurDoorNaarPortaal(profiel.rol, profiel.opleiding);
+      if (profiel && effectieveRol && !urlParams.has('profiel')) {
+        if (isSuperAdminEmail(huidigeGebruiker) && profiel.rol !== 'docent') {
+          await supabaseClient.from('profielen').update({ rol: 'docent' }).eq('id', huidigeGebruiker.id);
+        }
+        stuurDoorNaarPortaal(effectieveRol, profiel.opleiding);
       } else {
-        if (profiel) {
-          document.getElementById('naamInput').value = profiel.naam || '';
-          document.getElementById('rolInput').value = profiel.rol || 'student';
-          document.getElementById('opleidingInput').value = profiel.opleiding || 'vakspecialist';
-          document.getElementById('slbInput').value = profiel.slb_docent || 'René de Jonge';
+        if (profiel || isSuperAdminEmail(huidigeGebruiker)) {
+          document.getElementById('naamInput').value = (profiel && profiel.naam) || (isSuperAdminEmail(huidigeGebruiker) ? 'René de Jonge' : '');
+          document.getElementById('rolInput').value = effectieveRol || 'student';
+          document.getElementById('opleidingInput').value = (profiel && profiel.opleiding) || 'vakspecialist';
+          document.getElementById('slbInput').value = (profiel && profiel.slb_docent) || 'René de Jonge';
           toggleRolVelden();
         }
         toonProfielScherm();
@@ -349,7 +359,7 @@
       e.preventDefault();
       const rol = document.getElementById('rolInput').value;
       
-      if (rol === 'docent') {
+      if (rol === 'docent' && !isSuperAdminEmail(huidigeGebruiker)) {
         const code = document.getElementById('docentCodeInput').value;
         if (code !== DOCENT_GEHEIME_CODE) {
           return toonMelding('Onjuiste docentencode. Vraag deze op bij je team.', true);
