@@ -596,7 +596,7 @@
       URL.revokeObjectURL(url);
     }
 
-    function openStudentDetails(studentId) {
+function openStudentDetails(studentId) {
       const student = alleStudenten.find(s => s.id === studentId);
       const items = alleVoortgang.filter(v => v.student_id === studentId && getItemStatus(v) !== 'open');
 
@@ -620,14 +620,22 @@
           const kaartKleur = isIngeleverd ? 'border-orange-300 bg-orange-50' : 'border-green-200 bg-green-50';
           const badgeKleur = isIngeleverd ? 'bg-orange-500 text-white' : 'bg-green-600 text-white';
           const badgeTekst = isIngeleverd ? 'Ingeleverd (actie docent)' : 'Behaald';
+          const itsLink = (item.itslearning_url || '').trim();
 
           return `
             <div class="p-3 rounded border ${kaartKleur}">
-              <div class="flex justify-between items-center gap-2">
+              <div class="flex flex-wrap justify-between items-center gap-2">
                 <span class="font-bold text-sm">${escapeHtml(item.onderdeel_id)}</span>
-                <span class="text-xs font-bold px-2 py-0.5 rounded ${badgeKleur}">
-                  ${badgeTekst}
-                </span>
+                <div class="flex items-center gap-2">
+                  ${itsLink ? `
+                    <a href="${escapeHtml(itsLink)}" target="_blank" rel="noopener noreferrer" class="text-xs font-bold bg-black text-[#FFCC00] hover:bg-zinc-800 px-2.5 py-0.5 rounded transition">
+                      Open in Itslearning
+                    </a>
+                  ` : ''}
+                  <span class="text-xs font-bold px-2 py-0.5 rounded ${badgeKleur}">
+                    ${badgeTekst}
+                  </span>
+                </div>
               </div>
               ${item.notitie ? `<p class="text-xs text-zinc-700 mt-2 bg-white p-2 rounded border border-zinc-200">Notitie: ${escapeHtml(item.notitie)}</p>` : ''}
             </div>
