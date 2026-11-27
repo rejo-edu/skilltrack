@@ -68,6 +68,16 @@ function pasBovenbalkEnFooterAan() {
   }
 }
 
+function haalItslearningUrlOp(itemId) {
+  if (typeof findItemById === 'function' && typeof getItslearningUrl === 'function') {
+    const gevonden = findItemById(itemId);
+    if (gevonden && gevonden.item) {
+      return getItslearningUrl(gevonden.item);
+    }
+  }
+  return '';
+}
+
 async function laadStudentUitDatabase() {
   const { data: { session } } = await sbClient.auth.getSession();
   if (!session) {
@@ -135,6 +145,7 @@ async function syncItemNaarDatabase(itemId) {
 
   const isAfgerond = (huidigeStatus === 'behaald');
   const notitieTekst = (userState.notes[itemId] || '').trim();
+  const itslearningUrl = haalItslearningUrlOp(itemId);
 
   await sbClient.from('voortgang').upsert({
     student_id: currentStudentId,
@@ -142,6 +153,7 @@ async function syncItemNaarDatabase(itemId) {
     afgerond: isAfgerond,
     status: huidigeStatus,
     notitie: notitieTekst,
+    itslearning_url: itslearningUrl,
     bijgewerkt_op: new Date().toISOString()
   }, { onConflict: 'student_id,onderdeel_id' });
 
