@@ -75,6 +75,7 @@
           Inloggen
         </button>
       </form>
+    </div>
 
     <!-- SCHERM 1B: Wachtwoord vergeten aanvragen -->
     <div id="vergetenScherm" class="hidden bg-white w-full max-w-md rounded-lg shadow-md border border-zinc-200 overflow-hidden">
@@ -185,7 +186,29 @@
     const DOCENT_GEHEIME_CODE = 'BOS7-DOCENT';
     const SUPER_ADMIN_EMAIL = 'r.dejonge@noorderpoort.nl';
 
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // Bepaal of de sessie blijvend (localStorage) of tijdelijk (sessionStorage) bewaard wordt
+    const kiesOpslag = () => {
+      const cb = document.getElementById('onthoudMijInput');
+      if (cb && !cb.checked) return window.sessionStorage;
+      if (sessionStorage.getItem('skilltrack_tijdelijk') === '1') return window.sessionStorage;
+      return window.localStorage;
+    };
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        storage: {
+          getItem: (key) => kiesOpslag().getItem(key),
+          setItem: (key, value) => kiesOpslag().setItem(key, value),
+          removeItem: (key) => {
+            window.localStorage.removeItem(key);
+            window.sessionStorage.removeItem(key);
+          }
+        }
+      }
+    });
+
     let huidigeModus = 'inloggen';
     let huidigeGebruiker = null;
     let inHerstelModus = false;
@@ -313,6 +336,13 @@
         toonMelding('Account aangemaakt. Vul nu je profiel in.');
         toonProfielScherm();
       } else {
+        const onthoudMij = document.getElementById('onthoudMijInput').checked;
+        if (onthoudMij) {
+          sessionStorage.removeItem('skilltrack_tijdelijk');
+        } else {
+          sessionStorage.setItem('skilltrack_tijdelijk', '1');
+        }
+
         const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
         if (error) return toonMelding('Inloggen mislukt. Controleer je gegevens.', true);
         huidigeGebruiker = data.user;
