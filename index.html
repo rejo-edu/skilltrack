@@ -50,25 +50,31 @@
       <!-- Formulier -->
       <form id="authForm" onsubmit="verwerkAuth(event)" class="p-6 space-y-4">
         <div>
-          <label class="block text-sm font-semibold mb-1">School e-mailadres</label>
-          <input type="email" id="emailInput" required placeholder="naam@st.noorderpoort.nl" class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-black">
+          <label for="emailInput" class="block text-sm font-semibold mb-1">School e-mailadres</label>
+          <input type="email" id="emailInput" name="email" autocomplete="username" required placeholder="naam@st.noorderpoort.nl" class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-black">
         </div>
 
         <div>
           <div class="flex justify-between items-center mb-1">
-            <label class="block text-sm font-semibold">Wachtwoord</label>
+            <label for="wachtwoordInput" class="block text-sm font-semibold">Wachtwoord</label>
             <button type="button" id="vergetenLink" onclick="toonVergetenScherm()" class="text-xs font-semibold text-zinc-500 hover:text-black underline">
               Wachtwoord vergeten?
             </button>
           </div>
-          <input type="password" id="wachtwoordInput" required minlength="6" placeholder="Minimaal 6 tekens" class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-black">
+          <input type="password" id="wachtwoordInput" name="password" autocomplete="current-password" required minlength="6" placeholder="Minimaal 6 tekens" class="w-full px-3 py-2 border border-zinc-300 rounded focus:outline-none focus:border-black">
+        </div>
+
+        <div id="onthoudMijRij" class="flex items-center justify-between pt-1">
+          <label class="inline-flex items-center gap-2 text-xs font-semibold text-zinc-700 cursor-pointer select-none">
+            <input type="checkbox" id="onthoudMijInput" checked class="w-4 h-4 accent-black rounded border-zinc-300">
+            <span>Ingelogd blijven op dit apparaat</span>
+          </label>
         </div>
 
         <button type="submit" id="submitBtn" class="w-full bg-[#FFCC00] hover:bg-yellow-400 text-black font-bold py-2.5 rounded transition">
           Inloggen
         </button>
       </form>
-    </div>
 
     <!-- SCHERM 1B: Wachtwoord vergeten aanvragen -->
     <div id="vergetenScherm" class="hidden bg-white w-full max-w-md rounded-lg shadow-md border border-zinc-200 overflow-hidden">
